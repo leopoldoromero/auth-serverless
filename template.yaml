@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Resources:
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: User
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        # - AttributeName: providerId
+        #   AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL 
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        # - IndexName: ProviderIdIndex
+        #   KeySchema:
+        #     - AttributeName: providerId
+        #       KeyType: HASH
+        #   Projection:
+        #     ProjectionType: ALL
+        #   ProvisionedThroughput:
+        #     ReadCapacityUnits: 5
+        #     WriteCapacityUnits: 5
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: authUserPool
+      AutoVerifiedAttributes:
+        - email
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: authAppClient
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: true
+
+  CustomCognitoAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties: 
+      Name: CustomCognitoAuthorizer
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      RestApiId: !Ref ServerlessRestApi
+      ProviderARNs:
+        - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+
+  AuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.login_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: src/login
+      # MemorySize: 128
+      Timeout: 10
+      Role: arn:aws:iam::339712753971:role/AuthLambdaRole
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref CognitoUserPool
+          USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
+          DYNAMODB_TABLE_NAME: !Ref UserTable
+      # Policies:
+      #   - AWSLambdaBasicExecutionRole
+      #   - DynamoDBCrudPolicy:
+      #       TableName: !Ref UserTable
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: post
+
+  AuthLogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.logout_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: src/logout
+      # MemorySize: 128
+      Timeout: 10
+      Role: arn:aws:iam::339712753971:role/AuthLambdaRole
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref CognitoUserPool
+          USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
+      # Policies:
+      #   - AWSLambdaBasicExecutionRole
+      Events:
+        Logout:
+          Type: Api
+          Properties:
+            Path: /logout
+            Method: post
+
+  AuthRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.register_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      CodeUri: src/register
+      # MemorySize: 128
+      Timeout: 10
+      Role: arn:aws:iam::339712753971:role/AuthLambdaRole
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref CognitoUserPool
+          USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
+          DYNAMODB_TABLE_NAME: !Ref UserTable
+      # Policies:
+      #   - AWSLambdaBasicExecutionRole
+      #   - DynamoDBCrudPolicy:
+      #       TableName: !Ref UserTable
+      Events:
+        Register:
+          Type: Api
+          Properties:
+            Path: /register
+            Method: post
+
+Outputs:
+  LoginApi:
+    Description: API Gateway endpoint URL for the Login function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/login/"
+
+  LogoutApi:
+    Description: API Gateway endpoint URL for the Logout function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/logout/"
+
+  RegisterApi:
+    Description: API Gateway endpoint URL for the Register function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/register/"
+
+  AuthLoginFunction:
+    Description: Login Lambda Function ARN
+    Value: !GetAtt AuthLoginFunction.Arn
+
+  AuthLogoutFunction:
+    Description: Logout Lambda Function ARN
+    Value: !GetAtt AuthLogoutFunction.Arn
+
+  AuthRegisterFunction:
+    Description: Register Lambda Function ARN
+    Value: !GetAtt AuthRegisterFunction.Arn
+
+  UserTableName:
+    Description: DynamoDB Table Name for Users
+    Value: !Ref UserTable
+
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  CognitoUserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient

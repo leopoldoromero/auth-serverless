@@ -24,7 +24,7 @@
             ],
             "Resource": [
                 "arn:aws:dynamodb:*:*:table/User",
-                "arn:aws:dynamodb:us-east-1:339712753971:table/User/index/EmailIndex"
+                "arn:aws:dynamodb:us-east-1:${AWS_ACCOUNT_ID}:table/User/index/EmailIndex"
             ]
         },
         {

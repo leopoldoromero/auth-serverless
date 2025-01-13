@@ -10,8 +10,6 @@ Resources:
           AttributeType: S
         - AttributeName: email
           AttributeType: S
-        # - AttributeName: providerId
-        #   AttributeType: S
       KeySchema:
         - AttributeName: id
           KeyType: HASH
@@ -28,15 +26,6 @@ Resources:
           ProvisionedThroughput:
             ReadCapacityUnits: 5
             WriteCapacityUnits: 5
-        # - IndexName: ProviderIdIndex
-        #   KeySchema:
-        #     - AttributeName: providerId
-        #       KeyType: HASH
-        #   Projection:
-        #     ProjectionType: ALL
-        #   ProvisionedThroughput:
-        #     ReadCapacityUnits: 5
-        #     WriteCapacityUnits: 5
 
   CognitoUserPool:
     Type: AWS::Cognito::UserPool
@@ -70,7 +59,6 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: src/login
-      # MemorySize: 128
       Timeout: 10
       Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AuthLambdaRole
       Environment:
@@ -78,10 +66,6 @@ Resources:
           USER_POOL_ID: !Ref CognitoUserPool
           USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
           DYNAMODB_TABLE_NAME: !Ref UserTable
-      # Policies:
-      #   - AWSLambdaBasicExecutionRole
-      #   - DynamoDBCrudPolicy:
-      #       TableName: !Ref UserTable
       Events:
         Login:
           Type: Api
@@ -97,15 +81,12 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: src/logout
-      # MemorySize: 128
       Timeout: 10
       Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AuthLambdaRole
       Environment:
         Variables:
           USER_POOL_ID: !Ref CognitoUserPool
           USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
-      # Policies:
-      #   - AWSLambdaBasicExecutionRole
       Events:
         Logout:
           Type: Api
@@ -121,18 +102,13 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: src/register
-      # MemorySize: 128
       Timeout: 10
       Role: !Sub arn:aws:iam::${AWS::AccountId}:role/AuthLambdaRole
       Environment:
         Variables:
           USER_POOL_ID: !Ref CognitoUserPool
           USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
-          DYNAMODB_TABLE_NAME: !Ref UserTable
-      # Policies:
-      #   - AWSLambdaBasicExecutionRole
-      #   - DynamoDBCrudPolicy:
-      #       TableName: !Ref UserTable
+
       Events:
         Register:
           Type: Api
